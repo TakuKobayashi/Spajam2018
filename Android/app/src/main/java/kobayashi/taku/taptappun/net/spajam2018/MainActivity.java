@@ -23,13 +23,6 @@ import okhttp3.ResponseBody;
 import okio.BufferedSink;
 import okio.Okio;
 
-
-// IBM Watson SDK
-import com.ibm.watson.developer_cloud.android.speech_to_text.v1.dto.SpeechConfiguration;
-import com.ibm.watson.developer_cloud.android.speech_to_text.v1.ISpeechDelegate;
-import com.ibm.watson.developer_cloud.android.speech_to_text.v1.SpeechToText;
-
-
 public class MainActivity extends AppCompatActivity {
 
     // Used to load the 'native-lib' library on application startup.
