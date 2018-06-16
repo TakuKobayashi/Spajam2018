@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/project/citore/voices/akane_west_08b3f4cd721d235d9d9c61a5c59b951c.wav");
+        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/test/popteamepic.wav");
     }
 
     /**
