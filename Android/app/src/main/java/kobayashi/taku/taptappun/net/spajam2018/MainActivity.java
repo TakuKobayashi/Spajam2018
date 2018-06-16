@@ -1,5 +1,6 @@
 package kobayashi.taku.taptappun.net.spajam2018;
 
+import android.media.MediaPlayer;
 import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -49,6 +50,10 @@ public class MainActivity extends AppCompatActivity {
                     BufferedSink sink = Okio.buffer(Okio.sink(downloadedFile));
                     sink.writeAll(response.source());
                     sink.close();
+                    MediaPlayer mp = new MediaPlayer();
+                    mp.setDataSource(downloadedFile.getPath());
+                    mp.prepare();
+                    mp.start();
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
