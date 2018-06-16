@@ -88,7 +88,8 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/test/popteamepic.wav");
+        task.execute("http://35.194.5.215:8000/Youtube/?v=cz-qlUSPhfg");
+//        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/test/popteamepic.wav");
     }
 
     /**
