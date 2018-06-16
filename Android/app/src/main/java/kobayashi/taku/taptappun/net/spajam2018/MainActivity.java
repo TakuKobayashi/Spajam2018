@@ -1,10 +1,21 @@
 package kobayashi.taku.taptappun.net.spajam2018;
 
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.TextView;
 
 import net.taptappun.taku.kobayashi.runtimepermissionchecker.RuntimePermissionChecker;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.UUID;
+
+import okhttp3.ResponseBody;
+import okio.BufferedSink;
+import okio.Okio;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -25,6 +36,27 @@ public class MainActivity extends AppCompatActivity {
         tv.setText(stringFromJNI());
 
         RuntimePermissionChecker.requestAllPermissions(this, REQUEST_CODE);
+        downloadSound();
+    }
+
+    private void downloadSound(){
+        HttpRequestTask task = new HttpRequestTask();
+        task.addCallback(new HttpRequestTask.ResponseCallback() {
+            @Override
+            public void onSuccess(String url, ResponseBody response) {
+                File downloadedFile = new File(Environment.getExternalStorageDirectory().getPath() + "/" + UUID.randomUUID().toString() + ".wav");
+                try {
+                    BufferedSink sink = Okio.buffer(Okio.sink(downloadedFile));
+                    sink.writeAll(response.source());
+                    sink.close();
+                } catch (FileNotFoundException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/project/citore/voices/akane_west_08b3f4cd721d235d9d9c61a5c59b951c.wav");
     }
 
     /**
