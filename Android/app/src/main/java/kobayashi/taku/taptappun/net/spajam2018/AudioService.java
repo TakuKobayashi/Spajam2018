@@ -65,32 +65,40 @@ public class AudioService extends Service {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(Config.TAG, "onStartCommand");
-        downloadSound("http://35.194.5.215/Youtube/?v=cz-qlUSPhfg");
+        downloadSound("http://35.194.5.215/Youtube/?v=SO48dmRMINE");
         // タイマーの設定 1秒毎にループ
         mTimer = new Timer(true);
         mTimer.schedule( new TimerTask(){
             @Override
             public void run(){
                 SharedPreferences sp = Preferences.getCommonPreferences(AudioService.this);
-                if(mAudioManager.isMusicActive() && sp.getInt("HeadsetStatus", -1) > 0 && isSaid){
+                //&& sp.getInt("HeadsetStatus", -1) > 0;
+                if(mAudioManager.isMusicActive() && isSaid){
                     sayCounter++;
                     if(sayCounter > 10){
                         isSaid = false;
                         sayCounter = 0;
                         mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mPrevVolumn, 0);
+                        mPrevVolumn = -1;
                     }else{
-                        mPrevVolumn = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 1, 0);
                         String message = "話しかけたい人がいます";
                         try {
-                            downloadSound("http://35.194.5.215/Aitalk/?text=" + URLEncoder.encode(message, "UTF-8"));
+                            String sayUrl = "http://35.194.5.215/Aitalk/?text=" + URLEncoder.encode(message, "UTF-8");
+                            downloadSound(sayUrl);
+                            mUrlMp.get(sayUrl).setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                                @Override
+                                public void onCompletion(MediaPlayer mediaPlayer) {
+                                    mPrevVolumn = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                                    mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 1, 0);
+                                }
+                            });
                         } catch (UnsupportedEncodingException e) {
                             e.printStackTrace();
                         }
                     }
                 }
             }
-        }, 5000, 5000);
+        }, 1000, 1000);
         return START_STICKY;
     }
 
@@ -104,6 +112,11 @@ public class AudioService extends Service {
             mTimer.cancel();
             mTimer = null;
         }
+
+        if(mPrevVolumn > 0){
+            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mPrevVolumn, 0);
+        }
+
         for (String key : mUrlMp.keySet()) {
             MediaPlayer mp = mUrlMp.get(key);
             if(mp.isPlaying()){

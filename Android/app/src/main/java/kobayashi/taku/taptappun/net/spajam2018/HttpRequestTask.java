@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -34,7 +35,11 @@ public class HttpRequestTask extends AsyncTask<String, Void, Map<String, Respons
 
     protected Map<String, ResponseBody> doInBackground(String... urls){
         HashMap<String, ResponseBody> urlResponse = new HashMap<String, ResponseBody>();
-        OkHttpClient client = new OkHttpClient();
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(3600, TimeUnit.SECONDS)
+                .writeTimeout(3600, TimeUnit.SECONDS)
+                .readTimeout(3600, TimeUnit.SECONDS)
+                .build();
         for(String url : urls){
             Request.Builder requestBuilder = new Request.Builder();
             requestBuilder.url(url);
