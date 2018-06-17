@@ -58,49 +58,6 @@ public class MainActivity extends AppCompatActivity {
         });
 
         RuntimePermissionChecker.requestAllPermissions(this, REQUEST_CODE);
-        downloadSound("http://35.194.5.215/Youtube/?v=cz-qlUSPhfg");
-    }
-
-    private void downloadSound(String url){
-        SharedPreferences sp = Preferences.getCommonPreferences(this);
-        String soundFile = sp.getString(url, null);
-        if(soundFile != null){
-            playSound(soundFile);
-            return;
-        }
-
-        HttpRequestTask task = new HttpRequestTask();
-        task.addCallback(new HttpRequestTask.ResponseCallback() {
-            @Override
-            public void onSuccess(String url, ResponseBody response) {
-                File downloadedFile = new File(Environment.getExternalStorageDirectory().getPath() + "/" + UUID.randomUUID().toString() + ".wav");
-                try {
-                    BufferedSink sink = Okio.buffer(Okio.sink(downloadedFile));
-                    sink.writeAll(response.source());
-                    sink.close();
-                    Preferences.saveCommonParam(MainActivity.this, url, downloadedFile.getPath());
-                    playSound(downloadedFile.getPath());
-                } catch (FileNotFoundException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        });
-        task.execute(url);
-//        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/test/popteamepic.wav");
-    }
-
-    private void playSound(String dataPath){
-        Log.d(Config.TAG, dataPath);
-        MediaPlayer mp = new MediaPlayer();
-        try {
-            mp.setDataSource(dataPath);
-            mp.prepare();
-            mp.start();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     /**
