@@ -2,6 +2,8 @@ package kobayashi.taku.taptappun.net.spajam2018;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Environment;
@@ -56,11 +58,17 @@ public class MainActivity extends AppCompatActivity {
         });
 
         RuntimePermissionChecker.requestAllPermissions(this, REQUEST_CODE);
-        //downloadSound();
+        downloadSound("http://35.194.5.215/Youtube/?v=cz-qlUSPhfg");
     }
 
+    private void downloadSound(String url){
+        SharedPreferences sp = Preferences.getCommonPreferences(this);
+        String soundFile = sp.getString(url, null);
+        if(soundFile != null){
+            playSound(soundFile);
+            return;
+        }
 
-    private void downloadSound(){
         HttpRequestTask task = new HttpRequestTask();
         task.addCallback(new HttpRequestTask.ResponseCallback() {
             @Override
@@ -70,10 +78,8 @@ public class MainActivity extends AppCompatActivity {
                     BufferedSink sink = Okio.buffer(Okio.sink(downloadedFile));
                     sink.writeAll(response.source());
                     sink.close();
-                    MediaPlayer mp = new MediaPlayer();
-                    mp.setDataSource(downloadedFile.getPath());
-                    mp.prepare();
-                    mp.start();
+                    Preferences.saveCommonParam(MainActivity.this, url, downloadedFile.getPath());
+                    playSound(downloadedFile.getPath());
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
@@ -81,8 +87,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        task.execute("http://35.194.5.215:8000/Youtube/?v=cz-qlUSPhfg");
+        task.execute(url);
 //        task.execute("https://s3-ap-northeast-1.amazonaws.com/taptappun/test/popteamepic.wav");
+    }
+
+    private void playSound(String dataPath){
+        Log.d(Config.TAG, dataPath);
+        MediaPlayer mp = new MediaPlayer();
+        try {
+            mp.setDataSource(dataPath);
+            mp.prepare();
+            mp.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     /**
