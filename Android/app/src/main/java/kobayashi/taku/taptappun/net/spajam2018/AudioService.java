@@ -3,6 +3,7 @@ package kobayashi.taku.taptappun.net.spajam2018;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.IBinder;
 import android.util.Log;
@@ -13,11 +14,15 @@ import java.util.TimerTask;
 public class AudioService extends Service {
     private Timer mTimer = null;
     private AudioManager mAudioManager = null;
+    private HeadsetStateReceiver mHeadsetStateReceiver;
 
     @Override
     public void onCreate() {
         Log.d(Config.TAG, "onCreate");
         mAudioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
+        mHeadsetStateReceiver = new HeadsetStateReceiver();
+        registerReceiver(mHeadsetStateReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
+        registerReceiver(mHeadsetStateReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
     }
 
     @Override
@@ -37,6 +42,8 @@ public class AudioService extends Service {
     @Override
     public void onDestroy() {
         Log.d(Config.TAG, "onDestroy");
+        unregisterReceiver(mHeadsetStateReceiver);
+
         // タイマー停止
         if( mTimer != null ){
             mTimer.cancel();

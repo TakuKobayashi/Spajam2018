@@ -16,8 +16,9 @@ public class HeadsetStateReceiver extends BroadcastReceiver {
 
         switch (action) {
             case Intent.ACTION_HEADSET_PLUG:
-                Log.e(Config.TAG, "Intent.ACTION_HEADSET_PLUG");
+                Log.d(Config.TAG, "Intent.ACTION_HEADSET_PLUG");
                 int state = intent.getIntExtra("state", -1);
+                Preferences.saveCommonParam(context, "HeadsetStatus", state);
                 if (state == 0) {
                     // ヘッドセットが装着されていない・外された
                 } else if (state > 0) {
