@@ -39,7 +39,11 @@ public class LoopSpeechRecognizer implements RecognitionListener{
 
 	// 音声認識を終了する
 	public void stopListening() {
-		if (mSpeechRecognizer != null) mSpeechRecognizer.destroy();
+		if (mSpeechRecognizer != null){
+			mSpeechRecognizer.stopListening();
+			mSpeechRecognizer.cancel();
+			mSpeechRecognizer.destroy();
+		}
 		mSpeechRecognizer = null;
 	}
 

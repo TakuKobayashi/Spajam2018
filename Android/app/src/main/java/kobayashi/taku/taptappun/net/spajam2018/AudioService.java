@@ -13,6 +13,7 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Environment;
 import android.os.IBinder;
+import android.preference.PreferenceManager;
 import android.util.Log;
 
 import com.ibm.watson.developer_cloud.speech_to_text.v1.SpeechToText;
@@ -84,7 +85,6 @@ public class AudioService extends Service {
 */
                     break;
             }
-
         }
 
         //
@@ -94,35 +94,64 @@ public class AudioService extends Service {
         }
     };
 
+    private SharedPreferences.OnSharedPreferenceChangeListener mSharedListener = new SharedPreferences.OnSharedPreferenceChangeListener() {
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            if(key.equals("HeadsetStatus")){
+                registerAction();
+            }
+        }
+    };
+
+    private void initParams(){
+        mPrevVolumn = -1;
+        isSaid = false;
+        sayCounter = 0;
+        viveCounter = 0;
+    }
+
     @Override
     public void onCreate() {
         Log.d(Config.TAG, "onCreate");
+        initParams();
         mAudioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
         mHeadsetStateReceiver = new HeadsetStateReceiver();
-        /*
-        mLoopSpeechRecognizer = new LoopSpeechRecognizer(this);
-        mLoopSpeechRecognizer.setCallback(new LoopSpeechRecognizer.RecognizeCallback() {
-            @Override
-            public void onSuccess(float confidence, String value) {
-                isSaid = true;
-                sayCounter = 0;
-                Log.d(Config.TAG, "success:" + value);
-            }
-        });
-        mLoopSpeechRecognizer.startListening();
-        */
-
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
-
         mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        SharedPreferences sp = Preferences.getCommonPreferences(AudioService.this);
+        sp.registerOnSharedPreferenceChangeListener(mSharedListener);
+    }
+
+    private void registerAction(){
+        initParams();
+        SharedPreferences sp = Preferences.getCommonPreferences(AudioService.this);
+        if(sp.getInt("HeadsetStatus", -1) > 0){
+            mSensorManager.unregisterListener(mSensorEventListener);
+            mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
+            mLoopSpeechRecognizer.stopListening();
+        }else{
+            mSensorManager.unregisterListener(mSensorEventListener);
+            if(mLoopSpeechRecognizer != null){
+                mLoopSpeechRecognizer.stopListening();
+            }
+            mLoopSpeechRecognizer = new LoopSpeechRecognizer(this);
+            mLoopSpeechRecognizer.setCallback(new LoopSpeechRecognizer.RecognizeCallback() {
+                @Override
+                public void onSuccess(float confidence, String value) {
+                    isSaid = true;
+                    sayCounter = 0;
+                    Log.d(Config.TAG, "success:" + value);
+                }
+            });
+            mLoopSpeechRecognizer.startListening();
+        }
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(Config.TAG, "onStartCommand");
-        mSensorManager.unregisterListener(mSensorEventListener);
-        mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
+        registerAction();
         downloadSound("http://35.194.5.215/Youtube/?v=SO48dmRMINE");
         // タイマーの設定 1秒毎にループ
         mTimer = new Timer(true);
@@ -164,8 +193,11 @@ public class AudioService extends Service {
     @Override
     public void onDestroy() {
         Log.d(Config.TAG, "onDestroy");
+        SharedPreferences sp = Preferences.getCommonPreferences(AudioService.this);
+        sp.unregisterOnSharedPreferenceChangeListener(mSharedListener);
         unregisterReceiver(mHeadsetStateReceiver);
         mSensorManager.unregisterListener(mSensorEventListener);
+        mLoopSpeechRecognizer.stopListening();
 
         // タイマー停止
         if( mTimer != null ){
@@ -185,7 +217,6 @@ public class AudioService extends Service {
             mp.release();
         }
         mUrlMp.clear();
-        //mLoopSpeechRecognizer.stopListening();
     }
 
     @Override
