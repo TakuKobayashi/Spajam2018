@@ -11,6 +11,11 @@ import android.os.Environment;
 import android.os.IBinder;
 import android.util.Log;
 
+import com.ibm.watson.developer_cloud.speech_to_text.v1.SpeechToText;
+import com.ibm.watson.developer_cloud.speech_to_text.v1.model.RecognizeOptions;
+import com.ibm.watson.developer_cloud.speech_to_text.v1.model.SpeechRecognitionResults;
+import com.ibm.watson.developer_cloud.speech_to_text.v1.websocket.RecognizeCallback;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -33,12 +38,26 @@ public class AudioService extends Service {
     private HashMap<String, MediaPlayer> mUrlMp = new HashMap<String, MediaPlayer>();
     private int audioVolumnState = 0;
     private int mPrevVolumn = -1;
+    private LoopSpeechRecognizer mLoopSpeechRecognizer;
+    private boolean isSaid = false;
+    private int sayCounter = 0;
 
     @Override
     public void onCreate() {
         Log.d(Config.TAG, "onCreate");
         mAudioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
         mHeadsetStateReceiver = new HeadsetStateReceiver();
+        mLoopSpeechRecognizer = new LoopSpeechRecognizer(this);
+        mLoopSpeechRecognizer.setCallback(new LoopSpeechRecognizer.RecognizeCallback() {
+            @Override
+            public void onSuccess(float confidence, String value) {
+                isSaid = true;
+                sayCounter = 0;
+                Log.d(Config.TAG, "success:" + value);
+            }
+        });
+        mLoopSpeechRecognizer.startListening();
+
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
     }
@@ -53,22 +72,21 @@ public class AudioService extends Service {
             @Override
             public void run(){
                 SharedPreferences sp = Preferences.getCommonPreferences(AudioService.this);
-                if(mAudioManager.isMusicActive() && sp.getInt("HeadsetStatus", -1) > 0){
-                    if(audioVolumnState == 0){
+                if(mAudioManager.isMusicActive() && sp.getInt("HeadsetStatus", -1) > 0 && isSaid){
+                    sayCounter++;
+                    if(sayCounter > 10){
+                        isSaid = false;
+                        sayCounter = 0;
+                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mPrevVolumn, 0);
+                    }else{
                         mPrevVolumn = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-                        Log.d(Config.TAG, "volumn:" + mPrevVolumn);
-                        Log.d(Config.TAG, "volumn2:" + mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
-                        audioVolumnState = 1;
-                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0);
+                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 1, 0);
                         String message = "話しかけたい人がいます";
                         try {
                             downloadSound("http://35.194.5.215/Aitalk/?text=" + URLEncoder.encode(message, "UTF-8"));
                         } catch (UnsupportedEncodingException e) {
                             e.printStackTrace();
                         }
-                    }else{
-                        audioVolumnState = 0;
-                        mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mPrevVolumn, 0);
                     }
                 }
             }
@@ -94,6 +112,7 @@ public class AudioService extends Service {
             mp.release();
         }
         mUrlMp.clear();
+        mLoopSpeechRecognizer.stopListening();
     }
 
     @Override
@@ -106,7 +125,8 @@ public class AudioService extends Service {
         SharedPreferences sp = Preferences.getCommonPreferences(this);
         String soundFile = sp.getString(url, null);
         if(soundFile != null){
-            playSound(soundFile);
+            MediaPlayer mp = playSound(soundFile);
+            mUrlMp.put(url, mp);
             return;
         }
 
@@ -120,7 +140,8 @@ public class AudioService extends Service {
                     sink.writeAll(response.source());
                     sink.close();
                     Preferences.saveCommonParam(AudioService.this, url, downloadedFile.getPath());
-                    playSound(downloadedFile.getPath());
+                    MediaPlayer mp = playSound(downloadedFile.getPath());
+                    mUrlMp.put(url, mp);
                 } catch (FileNotFoundException e) {
                     e.printStackTrace();
                 } catch (IOException e) {
