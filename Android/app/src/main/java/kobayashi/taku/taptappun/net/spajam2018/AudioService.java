@@ -5,6 +5,10 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Environment;
@@ -41,12 +45,61 @@ public class AudioService extends Service {
     private LoopSpeechRecognizer mLoopSpeechRecognizer;
     private boolean isSaid = false;
     private int sayCounter = 0;
+    private int viveCounter = 0;
+
+    private SensorManager mSensorManager;
+    private float fAccell[] = new float[3];
+    private float mDiffAccell[] = new float[3];
+
+    private SensorEventListener mSensorEventListener = new SensorEventListener() {
+
+        // 値変更時
+        @Override
+        public void onSensorChanged(SensorEvent sensorEvent) {
+
+            // センサーの種類で値を取得
+            switch( sensorEvent.sensor.getType()) {
+                // 加速度
+                case Sensor.TYPE_ACCELEROMETER:
+                    float[] accell = sensorEvent.values.clone();
+                    for(int i = 0;i < fAccell.length;++i){
+                        mDiffAccell[i] = accell[i] - fAccell[i];
+                    }
+                    fAccell = accell;
+                    if(Math.abs(mDiffAccell[0]) + Math.abs(mDiffAccell[1]) + Math.abs(mDiffAccell[2]) > 1.5f){
+                        viveCounter++;
+                    }
+                    if(viveCounter > 5){
+                        isSaid = true;
+                        sayCounter = 0;
+                        viveCounter = 0;
+                    }
+/*
+                    String str = "";
+                    str += "加速度センサー\n"
+                            + "X:" + Math.abs(mDiffAccell[0]) + "\n"
+                            + "Y:" + Math.abs(mDiffAccell[1]) + "\n"
+                            + "Z:" + Math.abs(mDiffAccell[2]) + "\n";
+                    Log.d(Config.TAG, str);
+*/
+                    break;
+            }
+
+        }
+
+        //
+        @Override
+        public void onAccuracyChanged(Sensor sensor, int i) {
+
+        }
+    };
 
     @Override
     public void onCreate() {
         Log.d(Config.TAG, "onCreate");
         mAudioManager = (AudioManager) this.getSystemService(Context.AUDIO_SERVICE);
         mHeadsetStateReceiver = new HeadsetStateReceiver();
+        /*
         mLoopSpeechRecognizer = new LoopSpeechRecognizer(this);
         mLoopSpeechRecognizer.setCallback(new LoopSpeechRecognizer.RecognizeCallback() {
             @Override
@@ -57,14 +110,19 @@ public class AudioService extends Service {
             }
         });
         mLoopSpeechRecognizer.startListening();
+        */
 
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(Intent.ACTION_HEADSET_PLUG));
         registerReceiver(mHeadsetStateReceiver, new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY));
+
+        mSensorManager = (SensorManager)getSystemService(SENSOR_SERVICE);
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         Log.d(Config.TAG, "onStartCommand");
+        mSensorManager.unregisterListener(mSensorEventListener);
+        mSensorManager.registerListener(mSensorEventListener, mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_UI);
         downloadSound("http://35.194.5.215/Youtube/?v=SO48dmRMINE");
         // タイマーの設定 1秒毎にループ
         mTimer = new Timer(true);
@@ -75,7 +133,8 @@ public class AudioService extends Service {
                 //&& sp.getInt("HeadsetStatus", -1) > 0;
                 if(mAudioManager.isMusicActive() && isSaid){
                     sayCounter++;
-                    if(sayCounter > 10){
+                    viveCounter = 0;
+                    if(sayCounter > 5){
                         isSaid = false;
                         sayCounter = 0;
                         mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mPrevVolumn, 0);
@@ -83,13 +142,13 @@ public class AudioService extends Service {
                     }else{
                         String message = "話しかけたい人がいます";
                         try {
+                            mPrevVolumn = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
                             String sayUrl = "http://35.194.5.215/Aitalk/?text=" + URLEncoder.encode(message, "UTF-8");
                             downloadSound(sayUrl);
                             mUrlMp.get(sayUrl).setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
                                 @Override
                                 public void onCompletion(MediaPlayer mediaPlayer) {
-                                    mPrevVolumn = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-                                    mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 1, 0);
+                                    mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, 2, 0);
                                 }
                             });
                         } catch (UnsupportedEncodingException e) {
@@ -106,6 +165,7 @@ public class AudioService extends Service {
     public void onDestroy() {
         Log.d(Config.TAG, "onDestroy");
         unregisterReceiver(mHeadsetStateReceiver);
+        mSensorManager.unregisterListener(mSensorEventListener);
 
         // タイマー停止
         if( mTimer != null ){
@@ -125,7 +185,7 @@ public class AudioService extends Service {
             mp.release();
         }
         mUrlMp.clear();
-        mLoopSpeechRecognizer.stopListening();
+        //mLoopSpeechRecognizer.stopListening();
     }
 
     @Override
